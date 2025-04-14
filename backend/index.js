@@ -1,34 +1,34 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { AptosClient, AptosAccount, FaucetClient } = require('@aptos-labs/ts-sdk');
+const { Aptos, Network } = require('@aptos-labs/ts-sdk');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const NODE_URL = 'https://fullnode.devnet.aptoslabs.com';
-const FAUCET_URL = 'https://faucet.devnet.aptoslabs.com';
+// Initialize Aptos client with network configuration
+const aptos = new Aptos({
+  network: Network.DEVNET // Automatically uses Devnet endpoints
+});
 
-// Initialize clients
-const client = new AptosClient(NODE_URL);
-const faucetClient = new FaucetClient(NODE_URL, FAUCET_URL);
-
-// Updated Faucet endpoint
+// Faucet endpoint (using built-in faucet method)
 app.post('/api/faucet', async (req, res) => {
-  const { address } = req.body;
   try {
-    await faucetClient.fundAccount({ accountAddress: address, amount: 100_000_000 });
-    res.json({ success: true });
+    const tx = await aptos.fundAccount({
+      accountAddress: req.body.address,
+      amount: 100_000_000 // 1 APT (in octas)
+    });
+    res.json({ success: true, txHash: tx });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Updated Balance check endpoint
+// Get account balance endpoint
 app.get('/api/balance/:address', async (req, res) => {
   try {
-    const resources = await client.getAccountResources({
+    const resources = await aptos.getAccountResources({
       accountAddress: req.params.address
     });
     const coin = resources.find(r => r.type === '0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>');
